@@ -1,0 +1,47 @@
+pipeline {
+    agent any // The Jenkins agent where Docker is installed
+
+    stages {
+        stage('Clone Repository') {
+            steps {
+                // Clones the repository to the Jenkins workspace
+                checkout scm
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    // Builds the image using the Dockerfile in the current directory
+                    // and tags it with the current Jenkins build number.
+                    dockerImage = docker.build("myuser/my-app:${env.BUILD_NUMBER}")
+                }
+            }
+        }
+        
+        // Optional stage to run tests inside the newly built container
+        stage('Test Image') {
+            steps {
+                script {
+                    dockerImage.inside {
+                        sh 'echo "Running tests inside container..."'
+                        // Add actual test commands here (e.g., 'npm test')
+                    }
+                }
+            }
+        }
+
+        // Optional stage to push the image to a registry
+        stage('Push Image to Docker Hub') {
+            steps {
+                script {
+                    // Replace 'docker-hub-credentials' with the ID of your configured Jenkins credentials
+                    docker.withRegistry('https://registry.hub.docker.com', 'docker-hub-credentials') {
+                        dockerImage.push()
+                        dockerImage.push('latest')
+                    }
+                }
+            }
+        }
+    }
+}
